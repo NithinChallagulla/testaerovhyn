@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AEROVHYN – Drone CCTV Wall</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js"></script>
+
+<style>
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: black;
+  overflow: hidden;
+}
+
+.wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  width: 100vw;
+  height: 100vh;
+}
+
+.feed {
+  position: relative;
+}
+
+video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: black;
+}
+
+.label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #00ffff;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.9),
+    rgba(0,0,0,0.2)
+  );
+  pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+<div class="wall" id="wall"></div>
+
+<script>
+const BASE = "https://aerovhyn.tail2c9ba2.ts.net";
+
+const streams = [
+  { name: "Gunadala PS", path: "/streams/Gunadala_Ps/index.m3u8" },
+  { name: "Machavaram PS", path: "/streams/Machavaram_Ps/index.m3u8" },
+  { name: "Patamata PS", path: "/streams/Patamata_PS/index.m3u8" },
+  { name: "1 Town PS", path: "/streams/1_Town_PS/index.m3u8" },
+  { name: "Bhavanipuram PS", path: "/streams/Bhavanipuram_Ps/index.m3u8" },
+  { name: "Command Control", path: "/streams/Command_Control/index.m3u8" }
+  // add all others here
+];
+
+const wall = document.getElementById("wall");
+
+streams.forEach(s => {
+  const feed = document.createElement("div");
+  feed.className = "feed";
+
+  const video = document.createElement("video");
+  video.autoplay = true;
+  video.muted = true;
+  video.playsInline = true;
+  video.loop = true;
+
+  const label = document.createElement("div");
+  label.className = "label";
+  label.innerText = s.name;
+
+  const url = BASE + s.path;
+
+  if (Hls.isSupported()) {
+    const hls = new Hls({
+      liveDurationInfinity: true,
+      lowLatencyMode: false
+    });
+    hls.loadSource(url);
+    hls.attachMedia(video);
+  } else {
+    video.src = url;
+  }
+
+  feed.append(video, label);
+  wall.appendChild(feed);
+});
+</script>
+</body>
+</html>
