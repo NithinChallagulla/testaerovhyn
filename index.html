@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>AEROVHYN – Drone CCTV Wall</title>
-<script src="https://cdn.jsdelivr.net/npm/hls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
 html, body {
   margin: 0;
   width: 100%;
   height: 100%;
-  background: black;
+  background: #000;
   overflow: hidden;
 }
 
@@ -23,13 +23,14 @@ html, body {
 
 .feed {
   position: relative;
+  background: #000;
 }
 
 video {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  background: black;
+  background: #000;
 }
 
 .label {
@@ -45,7 +46,19 @@ video {
     rgba(0,0,0,0.9),
     rgba(0,0,0,0.2)
   );
-  pointer-events: none;
+  z-index: 2;
+}
+
+.offline {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ff4b4b;
+  font-size: 14px;
+  background: rgba(0,0,0,0.6);
+  z-index: 1;
 }
 </style>
 </head>
@@ -54,8 +67,10 @@ video {
 <div class="wall" id="wall"></div>
 
 <script>
-const BASE = "https://aerovhyn.tail2c9ba2.ts.net";
+/* ✅ PUBLIC CLOUDFLARE BASE */
+const BASE = "https://streams.aerovhyn.in";
 
+/* add all streams here */
 const streams = [
   { name: "Gunadala PS", path: "/streams/Gunadala_Ps/index.m3u8" },
   { name: "Machavaram PS", path: "/streams/Machavaram_Ps/index.m3u8" },
@@ -63,41 +78,77 @@ const streams = [
   { name: "1 Town PS", path: "/streams/1_Town_PS/index.m3u8" },
   { name: "Bhavanipuram PS", path: "/streams/Bhavanipuram_Ps/index.m3u8" },
   { name: "Command Control", path: "/streams/Command_Control/index.m3u8" }
-  // add all others here
 ];
 
 const wall = document.getElementById("wall");
 
-streams.forEach(s => {
+function createFeed({ name, path }) {
   const feed = document.createElement("div");
   feed.className = "feed";
 
   const video = document.createElement("video");
-  video.autoplay = true;
   video.muted = true;
+  video.autoplay = true;
   video.playsInline = true;
-  video.loop = true;
 
   const label = document.createElement("div");
   label.className = "label";
-  label.innerText = s.name;
+  label.textContent = name;
 
-  const url = BASE + s.path;
+  const offline = document.createElement("div");
+  offline.className = "offline";
+  offline.textContent = "NO SIGNAL";
+  offline.style.display = "none";
 
-  if (Hls.isSupported()) {
-    const hls = new Hls({
-      liveDurationInfinity: true,
-      lowLatencyMode: false
-    });
-    hls.loadSource(url);
-    hls.attachMedia(video);
-  } else {
-    video.src = url;
+  feed.append(video, label, offline);
+  wall.appendChild(feed);
+
+  const url = BASE + path;
+  let hls;
+
+  function start() {
+    offline.style.display = "none";
+
+    if (Hls.isSupported()) {
+      hls = new Hls({
+        liveDurationInfinity: true,
+        enableWorker: true,
+        maxBufferLength: 30,
+        backBufferLength: 60
+      });
+
+      hls.loadSource(url);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          stop();
+          retry();
+        }
+      });
+    } else {
+      video.src = url;
+    }
   }
 
-  feed.append(video, label);
-  wall.appendChild(feed);
-});
+  function stop() {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    video.removeAttribute("src");
+    video.load();
+    offline.style.display = "flex";
+  }
+
+  function retry() {
+    setTimeout(start, 5000); // retry every 5s
+  }
+
+  start();
+}
+
+streams.forEach(createFeed);
 </script>
 </body>
 </html>
